@@ -164,6 +164,9 @@
       pastebinDemo: "https://pastebin-lite-frontend-beige.vercel.app/",  // TODO: live demo URL
       pastebinDocs: "https://github.com/mightyanubhav/pastebin-lite-backend",  // TODO: documentation URL
       pastebinRepo: "https://github.com/mightyanubhav/pastebin-lite-backend",
+      hirebuddyDemo:"https://hirebuddyfrontend.netlify.app/",
+      hirebuddyDocs:"https://github.com/mightyanubhav/hirebuddy-backend",
+      hirebuddyRepo:"https://github.com/mightyanubhav/hirebuddy-backend"
     };
 
     const ROLES = [
@@ -220,6 +223,23 @@
 
     const PROJECTS = [
       {
+        name: "HireBuddy",
+        tagline: "Guide and Help Booking Platform",
+        stack: ["MERN", "Redis", "Microservices", "System Design", "Web sockets"],
+        featured: true,
+        points: [
+          "Implemented live messaging between users and guides using WebSockets",
+          "Integrated Razorpay for safe and seamless payment processing for credit tranfer for user.",
+          "Used Cloudinary for efficient image uploading and storage for user profile img.",
+          "Session management with Redis and otp authentication"
+        ],
+        links: [
+          { label: "Live Demo", href: LINKS.hirebuddyDemo },
+          { label: "Docs", href: LINKS.hirebuddyDocs },
+          { label: "Code", href: LINKS.hirebuddyRepo },
+        ],
+      },
+      {
         name: "Pastebin-Lite",
         tagline: "Distributed text storage with a custom load balancer",
         stack: ["MERN", "Redis", "Microservices", "Docker"],
@@ -233,18 +253,6 @@
           { label: "Live Demo", href: LINKS.pastebinDemo },
           { label: "Docs", href: LINKS.pastebinDocs },
           { label: "Code", href: LINKS.pastebinRepo },
-        ],
-      },
-      {
-        name: "DSA Practice",
-        tagline: "400+ problems solved across LeetCode & GeeksForGeeks",
-        stack: ["Java", "Algorithms", "Data Structures"],
-        points: [
-          "Consistent problem-solving practice in Java, covering trees, graphs, DP, and advanced traversal techniques like Morris Traversal.",
-        ],
-        links: [
-          { label: "Repository", href: LINKS.github + "/DSA" },
-          { label: "LeetCode", href: LINKS.leetcode },
         ],
       },
       {
@@ -1245,7 +1253,7 @@
 
             {/* ---------- PROJECTS ---------- */}
             <section id="projects" className="pt-24 scroll-mt-20">
-              <SectionTitle icon={IFolder} eyebrow="projects" title="Things I've built" />
+              <SectionTitle icon={IFolder} eyebrow="projects" title="Personal Projects" />
 
               <div className="grid gap-6">
                 {PROJECTS.map((proj, i) => (
