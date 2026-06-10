@@ -302,6 +302,9 @@
     const IArrow = (p) => <Svg {...p}><path d="M7 7h10v10"/><path d="M7 17 17 7"/></Svg>;
     const IUp = (p) => <Svg {...p}><path d="m18 15-6-6-6 6"/></Svg>;
     const IDown = (p) => <Svg {...p}><path d="m6 9 6 6 6-6"/></Svg>;
+    const ISend = (p) => <Svg {...p}><path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z"/><path d="m21.854 2.147-10.94 10.939"/></Svg>;
+    const ICheck = (p) => <Svg {...p}><path d="M20 6 9 17l-5-5"/></Svg>;
+    const IAlert = (p) => <Svg {...p}><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></Svg>;
 
     /* ---------- hooks & animated building blocks ---------- */
 
@@ -801,6 +804,200 @@
       );
     }
 
+    /* ============================================================
+       📬 CONTACT FORM + MAILER
+       -----------------------------------------------------------
+       Works on GitHub Pages (static hosting) via Web3Forms — a free
+       form relay that emails every submission to your inbox.
+
+       ONE-TIME SETUP (30 seconds):
+         1. Go to https://web3forms.com
+         2. Enter your email: kumaranubhav691@gmail.com
+         3. They email you a free Access Key (a UUID)
+         4. Paste it into WEB3FORMS_ACCESS_KEY below
+       That's it — submissions land in kumaranubhav691@gmail.com.
+    ============================================================ */
+
+    const WEB3FORMS_ACCESS_KEY = "05194492-1386-40fc-81eb-721638e2cd17";
+    const CONTACT_TO_EMAIL = "kumaranubhav691@gmail.com";
+
+    function ContactForm({ t, dark }) {
+      const [form, setForm] = useState({ name: "", email: "", subject: "", message: "" });
+      const [status, setStatus] = useState("idle"); // idle | sending | success | error
+      const [errorMsg, setErrorMsg] = useState("");
+
+      const update = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
+
+      const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim());
+      const valid = form.name.trim() && emailOk && form.message.trim().length >= 5;
+
+      const inputBase =
+        "w-full rounded-lg px-3.5 py-2.5 text-sm outline-none transition-colors focus:ring-2 " +
+        (dark
+          ? "bg-slate-900/70 border border-slate-700 text-slate-100 placeholder-slate-500 focus:border-violet-500 focus:ring-violet-500/25"
+          : "bg-white border border-slate-300 text-slate-800 placeholder-slate-400 focus:border-violet-500 focus:ring-violet-500/20");
+      const labelCls = `block text-xs font-mono uppercase tracking-widest mb-1.5 ${t.mono}`;
+
+      // a clean, readable email body — your "template"
+      const buildMessage = () =>
+        [
+          "📬 New message from your portfolio site",
+          "────────────────────────────",
+          `Name:    ${form.name.trim()}`,
+          `Email:   ${form.email.trim()}`,
+          `Subject: ${form.subject.trim() || "(none)"}`,
+          "────────────────────────────",
+          "",
+          form.message.trim(),
+          "",
+          "────────────────────────────",
+          "Sent automatically from anubhav's portfolio contact form.",
+        ].join("\n");
+
+      // mailto fallback — opens the visitor's email app pre-filled
+      const mailtoHref = () => {
+        const subject = encodeURIComponent(
+          form.subject.trim() || `Portfolio contact from ${form.name.trim() || "a visitor"}`
+        );
+        const body = encodeURIComponent(buildMessage());
+        return `mailto:${CONTACT_TO_EMAIL}?subject=${subject}&body=${body}`;
+      };
+
+      const send = async () => {
+        if (!valid || status === "sending") return;
+
+        // friendly guard if the key hasn't been added yet
+        if (!WEB3FORMS_ACCESS_KEY || WEB3FORMS_ACCESS_KEY.startsWith("PASTE-")) {
+          setStatus("error");
+          setErrorMsg(
+            "Mailer not configured yet — add your free Web3Forms access key in the code, or use the email button below."
+          );
+          return;
+        }
+
+        setStatus("sending");
+        setErrorMsg("");
+        try {
+          const res = await fetch("https://api.web3forms.com/submit", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Accept: "application/json" },
+            body: JSON.stringify({
+              access_key: WEB3FORMS_ACCESS_KEY,
+              subject:
+                form.subject.trim() || `📬 Portfolio contact from ${form.name.trim()}`,
+              from_name: "Portfolio Contact Form",
+              name: form.name.trim(),
+              email: form.email.trim(),
+              message: buildMessage(),
+              botcheck: "", // honeypot — keep empty
+            }),
+          });
+          const data = await res.json();
+          if (data.success) {
+            setStatus("success");
+            setForm({ name: "", email: "", subject: "", message: "" });
+          } else {
+            setStatus("error");
+            setErrorMsg(data.message || "Something went wrong. Please try the email button below.");
+          }
+        } catch (err) {
+          setStatus("error");
+          setErrorMsg("Network error — please try again, or use the email button below.");
+        }
+      };
+
+      if (status === "success") {
+        return (
+          <div className={`rounded-2xl border p-8 text-center ${t.card}`}>
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-500">
+              <ICheck className="w-7 h-7" />
+            </div>
+            <h3 className={`text-xl font-bold ${t.heading}`}>Message sent! 🎉</h3>
+            <p className={`mt-2 text-sm ${t.sub}`}>
+              Thanks for reaching out — your message just landed in my inbox.
+              I'll get back to you soon.
+            </p>
+            <button
+              onClick={() => setStatus("idle")}
+              className={`mt-5 inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold ${t.btnGhost}`}>
+              Send another
+            </button>
+          </div>
+        );
+      }
+
+      return (
+        <div className={`rounded-2xl border p-6 sm:p-7 text-left ${t.card}`}>
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="cf-name" className={labelCls}>Name</label>
+              <input id="cf-name" type="text" value={form.name} onChange={update("name")}
+                placeholder="Your name" autoComplete="name" className={inputBase} />
+            </div>
+            <div>
+              <label htmlFor="cf-email" className={labelCls}>Email</label>
+              <input id="cf-email" type="email" value={form.email} onChange={update("email")}
+                placeholder="you@example.com" autoComplete="email"
+                className={`${inputBase} ${form.email && !emailOk ? "border-red-500/70 focus:border-red-500 focus:ring-red-500/25" : ""}`} />
+            </div>
+          </div>
+
+          <div className="mt-4">
+            <label htmlFor="cf-subject" className={labelCls}>Subject <span className="opacity-50 normal-case">(optional)</span></label>
+            <input id="cf-subject" type="text" value={form.subject} onChange={update("subject")}
+              placeholder="What's this about?" className={inputBase} />
+          </div>
+
+          <div className="mt-4">
+            <label htmlFor="cf-message" className={labelCls}>Message</label>
+            <textarea id="cf-message" rows="5" value={form.message} onChange={update("message")}
+              placeholder="Tell me about the opportunity, project, or question…"
+              className={`${inputBase} resize-y min-h-[120px]`}></textarea>
+          </div>
+
+          {status === "error" && (
+            <div className="mt-4 flex items-start gap-2.5 rounded-lg border border-red-500/40 bg-red-500/10 px-3.5 py-2.5 text-sm text-red-400">
+              <IAlert className="w-4 h-4 mt-0.5 shrink-0" />
+              <span>{errorMsg}</span>
+            </div>
+          )}
+
+          <div className="mt-5 flex flex-wrap items-center gap-3">
+            <Magnetic>
+              <button onClick={send} disabled={!valid || status === "sending"}
+                className={`btn-shine inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all ${t.btnPrimary} ${
+                  (!valid || status === "sending") ? "opacity-50 cursor-not-allowed" : ""
+                }`}>
+                {status === "sending" ? (
+                  <>
+                    <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.25" />
+                      <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                    </svg>
+                    Sending…
+                  </>
+                ) : (
+                  <>
+                    <ISend className="w-4 h-4" /> Send message
+                  </>
+                )}
+              </button>
+            </Magnetic>
+
+            {/* fallback that always works, even without the access key */}
+            <a href={valid ? mailtoHref() : LINKS.email}
+              className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold ${t.btnGhost}`}>
+              <IMail className="w-4 h-4" /> Open in email app
+            </a>
+          </div>
+
+          <p className={`mt-3 text-[11px] ${t.sub}`}>
+            Your message is delivered straight to {CONTACT_TO_EMAIL}.
+          </p>
+        </div>
+      );
+    }
+
     /* ---------- main component ---------- */
 
     function Portfolio() {
@@ -962,7 +1159,7 @@
                     </a>
                   </Magnetic>
                   <Magnetic>
-                    <a href={LINKS.email} className={`inline-block px-5 py-2.5 rounded-lg text-sm font-semibold ${t.btnGhost}`}>
+                    <a href="#contact" className={`inline-block px-5 py-2.5 rounded-lg text-sm font-semibold ${t.btnGhost}`}>
                       Get in touch
                     </a>
                   </Magnetic>
@@ -1158,12 +1355,26 @@
                   </h2>
                   <p className={`mt-4 leading-relaxed ${t.sub}`}>
                     I'm always happy to talk about full-stack engineering, system
-                    design, or interesting problems. My inbox is open — whether
-                    it's an opportunity or just a question.
+                    design, or interesting problems. Drop me a message below — it
+                    lands straight in my inbox.
                   </p>
-                  <div className="mt-8 flex flex-wrap justify-center gap-3">
+                </div>
+              </Reveal>
+
+              {/* the mailer form */}
+              <Reveal delay={120}>
+                <div className="mt-10 max-w-xl mx-auto">
+                  <ContactForm t={t} dark={dark} />
+                </div>
+              </Reveal>
+
+              {/* direct contact options */}
+              <Reveal delay={200}>
+                <div className="mt-8 text-center max-w-xl mx-auto">
+                  <p className={`text-sm ${t.sub}`}>Prefer the direct route?</p>
+                  <div className="mt-4 flex flex-wrap justify-center gap-3">
                     <Magnetic>
-                      <a href={LINKS.email} className={`btn-shine inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold ${t.btnPrimary}`}>
+                      <a href={LINKS.email} className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold ${t.btnGhost}`}>
                         <IMail className="w-4 h-4" /> kumaranubhav691@gmail.com
                       </a>
                     </Magnetic>
