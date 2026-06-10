@@ -34,6 +34,90 @@
 
   <style>
     html { scroll-behavior: smooth; }
+
+    /* animated gradient on the name */
+    .gradient-name {
+      background: linear-gradient(90deg, #8b5cf6, #34d399, #a78bfa, #8b5cf6);
+      background-size: 250% auto;
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      color: transparent;
+      animation: shine 7s linear infinite;
+    }
+    @keyframes shine { to { background-position: 250% center; } }
+
+    /* soft floating blobs behind the hero */
+    .blob {
+      position: absolute;
+      border-radius: 9999px;
+      filter: blur(90px);
+      opacity: 0.25;
+      pointer-events: none;
+      animation: drift 16s ease-in-out infinite alternate;
+    }
+    .blob-2 { animation-duration: 22s; animation-delay: -6s; }
+    @keyframes drift {
+      from { transform: translate(0, 0) scale(1); }
+      to   { transform: translate(60px, -50px) scale(1.15); }
+    }
+
+    /* tilt cards */
+    .tilt {
+      transform-style: preserve-3d;
+      transition: transform 0.25s ease, box-shadow 0.25s ease;
+      will-change: transform;
+    }
+
+    /* mouse-following spotlight inside cards */
+    .spot-card { position: relative; overflow: hidden; }
+    .spot-card::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      background: radial-gradient(380px circle at var(--mx, 50%) var(--my, 50%),
+        rgba(139, 92, 246, 0.16), transparent 65%);
+      opacity: 0;
+      transition: opacity 0.35s ease;
+      pointer-events: none;
+    }
+    .spot-card:hover::before { opacity: 1; }
+
+    /* shimmer sweep on primary buttons */
+    .btn-shine { position: relative; overflow: hidden; }
+    .btn-shine::after {
+      content: "";
+      position: absolute;
+      top: 0; left: -120%;
+      width: 60%; height: 100%;
+      background: linear-gradient(105deg, transparent, rgba(255,255,255,.35), transparent);
+      transform: skewX(-20deg);
+      transition: left 0.6s ease;
+    }
+    .btn-shine:hover::after { left: 130%; }
+
+    /* infinite tech marquee */
+    .marquee { overflow: hidden; -webkit-mask-image: linear-gradient(90deg, transparent, black 12%, black 88%, transparent); mask-image: linear-gradient(90deg, transparent, black 12%, black 88%, transparent); }
+    .marquee-track {
+      display: flex;
+      width: max-content;
+      animation: marquee 28s linear infinite;
+    }
+    .marquee:hover .marquee-track { animation-play-state: paused; }
+    @keyframes marquee { to { transform: translateX(-50%); } }
+
+    /* bouncing scroll hint */
+    .bounce-slow { animation: bounceSlow 2s ease-in-out infinite; }
+    @keyframes bounceSlow {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(8px); }
+    }
+
+    /* glowing tip of the tracing beam */
+    .beam-dot { box-shadow: 0 0 14px 3px rgba(52, 211, 153, 0.75); }
+
+    /* respect reduced motion */
     @media (prefers-reduced-motion: reduce) {
       html { scroll-behavior: auto; }
       * { animation: none !important; transition: none !important; }
@@ -68,6 +152,17 @@
       "Spring Boot Learner",
       "AI Tooling Builder",
       "System Design Enthusiast",
+    ];
+
+    const STATS = [
+      { value: 60, suffix: "%", label: "screening effort automated" },
+      { value: 45, suffix: "%", label: "faster HR issue resolution" },
+      { value: 400, suffix: "+", label: "DSA problems solved" },
+    ];
+
+    const MARQUEE = [
+      "React", "Node.js", "Spring Boot", "Tailwind CSS", "Docker", "Redis",
+      "MongoDB", "MS SQL Server", "Java", "JavaScript", "RabbitMQ", "System Design",
     ];
 
     const EXPERIENCE = [
@@ -150,7 +245,11 @@
       { id: "contact", label: "Contact" },
     ];
 
-    /* ---------- inline SVG icons (no external icon library needed) ---------- */
+    const REDUCED_MOTION =
+      window.matchMedia &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    /* ---------- inline SVG icons ---------- */
 
     const Svg = ({ children, className = "w-5 h-5" }) => (
       <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -172,8 +271,10 @@
     const IWrench = (p) => <Svg {...p}><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></Svg>;
     const ICode = (p) => <Svg {...p}><path d="m16 18 6-6-6-6"/><path d="m8 6-6 6 6 6"/></Svg>;
     const IArrow = (p) => <Svg {...p}><path d="M7 7h10v10"/><path d="M7 17 17 7"/></Svg>;
+    const IUp = (p) => <Svg {...p}><path d="m18 15-6-6-6 6"/></Svg>;
+    const IDown = (p) => <Svg {...p}><path d="m6 9 6 6 6-6"/></Svg>;
 
-    /* ---------- small hooks ---------- */
+    /* ---------- hooks & animated building blocks ---------- */
 
     function useTyping(words, speed = 70, pause = 1600) {
       const [text, setText] = useState("");
@@ -181,6 +282,7 @@
       const [deleting, setDeleting] = useState(false);
 
       useEffect(() => {
+        if (REDUCED_MOTION) { setText(words[0]); return; }
         const word = words[wordIdx % words.length];
         let delay = deleting ? speed / 2 : speed;
         if (!deleting && text === word) delay = pause;
@@ -201,7 +303,7 @@
       return text;
     }
 
-    function Reveal({ children, delay = 0 }) {
+    function Reveal({ children, delay = 0, dir = "up" }) {
       const ref = useRef(null);
       const [visible, setVisible] = useState(false);
 
@@ -221,15 +323,294 @@
         return () => obs.disconnect();
       }, []);
 
+      const hidden =
+        dir === "left" ? "opacity-0 -translate-x-8"
+        : dir === "right" ? "opacity-0 translate-x-8"
+        : "opacity-0 translate-y-6";
+
       return (
         <div
           ref={ref}
           style={{ transitionDelay: `${delay}ms` }}
           className={`transition-all duration-700 ease-out ${
-            visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"
+            visible ? "opacity-100 translate-x-0 translate-y-0" : hidden
           }`}
         >
           {children}
+        </div>
+      );
+    }
+
+    /* count-up number that animates when it scrolls into view */
+    function CountUp({ end, suffix = "", duration = 1600 }) {
+      const ref = useRef(null);
+      const [val, setVal] = useState(0);
+
+      useEffect(() => {
+        const node = ref.current;
+        if (!node) return;
+        if (REDUCED_MOTION) { setVal(end); return; }
+        let raf;
+        const obs = new IntersectionObserver(
+          ([entry]) => {
+            if (!entry.isIntersecting) return;
+            obs.disconnect();
+            const start = performance.now();
+            const tick = (now) => {
+              const p = Math.min((now - start) / duration, 1);
+              const eased = 1 - Math.pow(1 - p, 3);
+              setVal(Math.round(end * eased));
+              if (p < 1) raf = requestAnimationFrame(tick);
+            };
+            raf = requestAnimationFrame(tick);
+          },
+          { threshold: 0.4 }
+        );
+        obs.observe(node);
+        return () => { obs.disconnect(); cancelAnimationFrame(raf); };
+      }, [end, duration]);
+
+      return <span ref={ref}>{val}{suffix}</span>;
+    }
+
+    /* connected-particle canvas — a quiet nod to load balancing & networks */
+    function ParticleField({ dark }) {
+      const canvasRef = useRef(null);
+
+      useEffect(() => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const ctx = canvas.getContext("2d");
+        let raf, w, h;
+        const mouse = { x: -9999, y: -9999 };
+        const DPR = Math.min(window.devicePixelRatio || 1, 2);
+
+        const resize = () => {
+          w = window.innerWidth;
+          h = window.innerHeight;
+          canvas.width = w * DPR;
+          canvas.height = h * DPR;
+          canvas.style.width = w + "px";
+          canvas.style.height = h + "px";
+          ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+        };
+        resize();
+
+        const COUNT = Math.min(70, Math.floor((w * h) / 22000));
+        const pts = Array.from({ length: COUNT }, () => ({
+          x: Math.random() * w,
+          y: Math.random() * h,
+          vx: (Math.random() - 0.5) * 0.35,
+          vy: (Math.random() - 0.5) * 0.35,
+          r: 1 + Math.random() * 1.5,
+        }));
+
+        const rgb = dark ? "139,92,246" : "109,40,217";
+        const rgb2 = dark ? "52,211,153" : "5,150,105";
+
+        const frame = () => {
+          ctx.clearRect(0, 0, w, h);
+          for (let i = 0; i < pts.length; i++) {
+            const p = pts[i];
+            p.x += p.vx; p.y += p.vy;
+            if (p.x < 0 || p.x > w) p.vx *= -1;
+            if (p.y < 0 || p.y > h) p.vy *= -1;
+
+            const dxm = mouse.x - p.x, dym = mouse.y - p.y;
+            const dm = Math.hypot(dxm, dym);
+            if (dm < 160 && dm > 0.1) {
+              p.x += (dxm / dm) * 0.25;
+              p.y += (dym / dm) * 0.25;
+            }
+
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(${i % 7 === 0 ? rgb2 : rgb},${dark ? 0.55 : 0.4})`;
+            ctx.fill();
+
+            for (let j = i + 1; j < pts.length; j++) {
+              const q = pts[j];
+              const d = Math.hypot(p.x - q.x, p.y - q.y);
+              if (d < 120) {
+                ctx.beginPath();
+                ctx.moveTo(p.x, p.y);
+                ctx.lineTo(q.x, q.y);
+                ctx.strokeStyle = `rgba(${rgb},${(1 - d / 120) * (dark ? 0.22 : 0.14)})`;
+                ctx.lineWidth = 1;
+                ctx.stroke();
+              }
+            }
+          }
+          raf = requestAnimationFrame(frame);
+        };
+
+        const onMouse = (e) => { mouse.x = e.clientX; mouse.y = e.clientY; };
+        const onLeave = () => { mouse.x = -9999; mouse.y = -9999; };
+
+        if (REDUCED_MOTION) {
+          frame(); cancelAnimationFrame(raf);
+        } else {
+          raf = requestAnimationFrame(frame);
+          window.addEventListener("mousemove", onMouse, { passive: true });
+          window.addEventListener("mouseout", onLeave);
+        }
+        window.addEventListener("resize", resize);
+
+        return () => {
+          cancelAnimationFrame(raf);
+          window.removeEventListener("resize", resize);
+          window.removeEventListener("mousemove", onMouse);
+          window.removeEventListener("mouseout", onLeave);
+        };
+      }, [dark]);
+
+      return (
+        <canvas
+          ref={canvasRef}
+          className="fixed inset-0 z-0 pointer-events-none"
+          aria-hidden="true"
+        />
+      );
+    }
+
+    /* 3D tilt + mouse spotlight wrapper for cards */
+    function Tilt({ children, className = "", max = 7 }) {
+      const ref = useRef(null);
+
+      const onMove = (e) => {
+        const el = ref.current;
+        if (!el) return;
+        const rect = el.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        // feed the spotlight position to CSS
+        const card = el.querySelector(".spot-card");
+        if (card) {
+          card.style.setProperty("--mx", x + "px");
+          card.style.setProperty("--my", y + "px");
+        }
+        if (REDUCED_MOTION) return;
+        const px = x / rect.width - 0.5;
+        const py = y / rect.height - 0.5;
+        el.style.transform = `perspective(900px) rotateX(${-py * max}deg) rotateY(${px * max}deg) translateY(-3px)`;
+      };
+      const onLeave = () => {
+        if (ref.current) ref.current.style.transform = "";
+      };
+
+      return (
+        <div ref={ref} onMouseMove={onMove} onMouseLeave={onLeave}
+          className={`tilt ${className}`}>
+          {children}
+        </div>
+      );
+    }
+
+    /* magnetic pull on buttons — they lean toward the cursor */
+    function Magnetic({ children, strength = 0.3 }) {
+      const ref = useRef(null);
+      const onMove = (e) => {
+        if (REDUCED_MOTION) return;
+        const el = ref.current;
+        const rect = el.getBoundingClientRect();
+        const x = (e.clientX - rect.left - rect.width / 2) * strength;
+        const y = (e.clientY - rect.top - rect.height / 2) * strength;
+        el.style.transform = `translate(${x}px, ${y}px)`;
+      };
+      const onLeave = () => {
+        if (ref.current) ref.current.style.transform = "";
+      };
+      return (
+        <div ref={ref} onMouseMove={onMove} onMouseLeave={onLeave}
+          className="inline-block transition-transform duration-200 ease-out">
+          {children}
+        </div>
+      );
+    }
+
+    /* thin scroll-progress bar pinned to the very top */
+    function ScrollProgress() {
+      const [p, setP] = useState(0);
+      useEffect(() => {
+        const handler = () => {
+          const max = document.documentElement.scrollHeight - window.innerHeight;
+          setP(max > 0 ? (window.scrollY / max) * 100 : 0);
+        };
+        window.addEventListener("scroll", handler, { passive: true });
+        handler();
+        return () => window.removeEventListener("scroll", handler);
+      }, []);
+      return (
+        <div className="fixed top-0 left-0 z-[60] h-1 bg-gradient-to-r from-violet-600 via-violet-400 to-emerald-400 transition-[width] duration-150"
+          style={{ width: `${p}%` }} />
+      );
+    }
+
+    /* ⭐ tracing beam — a glowing line that draws itself down the page as you scroll */
+    function TracingBeam({ targetRef, dark }) {
+      const [p, setP] = useState(0);
+
+      useEffect(() => {
+        const handler = () => {
+          const el = targetRef.current;
+          if (!el) return;
+          const rect = el.getBoundingClientRect();
+          const anchor = window.innerHeight * 0.5; // beam tip sits mid-viewport
+          const total = rect.height;
+          const scrolled = Math.min(Math.max(anchor - rect.top, 0), total);
+          setP(total > 0 ? scrolled / total : 0);
+        };
+        window.addEventListener("scroll", handler, { passive: true });
+        window.addEventListener("resize", handler);
+        handler();
+        return () => {
+          window.removeEventListener("scroll", handler);
+          window.removeEventListener("resize", handler);
+        };
+      }, []);
+
+      return (
+        <div className="hidden lg:block absolute -left-10 top-0 h-full w-px pointer-events-none" aria-hidden="true">
+          {/* faint track */}
+          <div className={`absolute inset-0 w-px ${dark ? "bg-slate-800" : "bg-slate-200"}`}></div>
+          {/* glowing fill that grows with scroll */}
+          <div
+            className="absolute top-0 left-0 w-px bg-gradient-to-b from-violet-600 via-violet-400 to-emerald-400"
+            style={{ height: `${p * 100}%` }}
+          ></div>
+          {/* traveling tip */}
+          <div
+            className="beam-dot absolute -left-[5px] w-[11px] h-[11px] rounded-full bg-emerald-400"
+            style={{ top: `calc(${Math.min(p, 0.998) * 100}% - 5px)`, opacity: p > 0.002 ? 1 : 0 }}
+          ></div>
+        </div>
+      );
+    }
+
+    /* vertical line beside the experience timeline that fills as it enters view */
+    function FillLine({ dark }) {
+      const ref = useRef(null);
+      const [p, setP] = useState(0);
+
+      useEffect(() => {
+        const handler = () => {
+          const el = ref.current;
+          if (!el) return;
+          const rect = el.getBoundingClientRect();
+          const anchor = window.innerHeight * 0.75;
+          const progress = (anchor - rect.top) / rect.height;
+          setP(Math.min(Math.max(progress, 0), 1));
+        };
+        window.addEventListener("scroll", handler, { passive: true });
+        handler();
+        return () => window.removeEventListener("scroll", handler);
+      }, []);
+
+      return (
+        <div ref={ref} className="absolute left-0 top-0 h-full w-0.5" aria-hidden="true">
+          <div className={`absolute inset-0 ${dark ? "bg-slate-800" : "bg-slate-200"}`}></div>
+          <div className="absolute top-0 left-0 w-full bg-gradient-to-b from-violet-500 to-emerald-400"
+            style={{ height: `${p * 100}%` }}></div>
         </div>
       );
     }
@@ -239,7 +620,11 @@
     function Portfolio() {
       const [dark, setDark] = useState(true);
       const [activeSection, setActiveSection] = useState("");
+      const [showTop, setShowTop] = useState(false);
+      const [scrolled, setScrolled] = useState(false);
       const typed = useTyping(ROLES);
+      const mainRef = useRef(null);
+      const blobsRef = useRef(null);
 
       useEffect(() => {
         const handler = () => {
@@ -249,6 +634,12 @@
             if (el && el.getBoundingClientRect().top < 160) current = id;
           }
           setActiveSection(current);
+          setShowTop(window.scrollY > 600);
+          setScrolled(window.scrollY > 80);
+          // parallax on hero blobs (direct DOM write, no re-render)
+          if (blobsRef.current && !REDUCED_MOTION) {
+            blobsRef.current.style.transform = `translateY(${window.scrollY * 0.18}px)`;
+          }
         };
         window.addEventListener("scroll", handler, { passive: true });
         handler();
@@ -261,32 +652,34 @@
             nav: "bg-slate-950/80 border-slate-800",
             heading: "text-slate-50",
             sub: "text-slate-400",
-            card: "bg-slate-900 border-slate-800 hover:border-violet-500/60",
-            chip: "bg-slate-800 text-slate-300 border-slate-700",
+            card: "bg-slate-900/90 border-slate-800 hover:border-violet-500/60 hover:shadow-xl hover:shadow-violet-950/50",
+            chip: "bg-slate-800 text-slate-300 border-slate-700 hover:border-violet-500/60 hover:text-violet-300",
             accentChip: "bg-violet-500/10 text-violet-300 border-violet-500/30",
             link: "text-violet-400 hover:text-violet-300",
             mono: "text-emerald-400",
             btnPrimary: "bg-violet-600 hover:bg-violet-500 text-white shadow-lg shadow-violet-900/40",
             btnGhost: "border border-slate-700 hover:border-violet-500 text-slate-300 hover:text-violet-300",
-            timeline: "border-slate-800",
             dot: "bg-violet-500 ring-slate-950",
             footer: "border-slate-800 text-slate-500",
+            statCard: "bg-slate-900/70 border-slate-800",
+            marquee: "text-slate-600",
           }
         : {
             page: "bg-slate-50 text-slate-700",
             nav: "bg-slate-50/80 border-slate-200",
             heading: "text-slate-900",
             sub: "text-slate-500",
-            card: "bg-white border-slate-200 hover:border-violet-400 shadow-sm",
-            chip: "bg-slate-100 text-slate-600 border-slate-200",
+            card: "bg-white/90 border-slate-200 hover:border-violet-400 shadow-sm hover:shadow-xl hover:shadow-violet-100",
+            chip: "bg-slate-100 text-slate-600 border-slate-200 hover:border-violet-400 hover:text-violet-600",
             accentChip: "bg-violet-50 text-violet-700 border-violet-200",
             link: "text-violet-600 hover:text-violet-500",
             mono: "text-emerald-600",
             btnPrimary: "bg-violet-600 hover:bg-violet-500 text-white shadow-lg shadow-violet-200",
             btnGhost: "border border-slate-300 hover:border-violet-500 text-slate-600 hover:text-violet-600",
-            timeline: "border-slate-200",
             dot: "bg-violet-500 ring-slate-50",
             footer: "border-slate-200 text-slate-400",
+            statCard: "bg-white/70 border-slate-200",
+            marquee: "text-slate-400",
           };
 
       const SectionTitle = ({ icon: Icon, eyebrow, title }) => (
@@ -302,7 +695,16 @@
       );
 
       return (
-        <div className={`min-h-screen font-sans antialiased ${t.page}`}>
+        <div className={`min-h-screen font-sans antialiased overflow-x-hidden ${t.page}`}>
+          <ScrollProgress />
+          <ParticleField dark={dark} />
+
+          {/* floating blobs behind hero, with scroll parallax */}
+          <div ref={blobsRef} className="absolute top-0 inset-x-0 h-[90vh] overflow-hidden pointer-events-none z-0" aria-hidden="true">
+            <div className="blob w-96 h-96 bg-violet-600 top-10 -left-20"></div>
+            <div className="blob blob-2 w-80 h-80 bg-emerald-500 top-40 right-0"></div>
+          </div>
+
           {/* ---------- NAV ---------- */}
           <header className={`fixed top-0 inset-x-0 z-50 backdrop-blur-md border-b ${t.nav}`}>
             <nav className="max-w-5xl mx-auto px-5 h-16 flex items-center justify-between">
@@ -312,23 +714,29 @@
               <div className="flex items-center gap-1 sm:gap-2">
                 {NAV.map(({ id, label }) => (
                   <a key={id} href={`#${id}`}
-                    className={`hidden sm:inline-block px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    className={`hidden sm:inline-block relative px-3 py-2 rounded-md text-sm font-medium transition-colors group ${
                       activeSection === id ? "text-violet-500" : `${t.sub} hover:text-violet-500`
                     }`}>
                     {label}
+                    <span className={`absolute left-3 right-3 -bottom-0.5 h-0.5 rounded-full bg-violet-500 origin-left transition-transform duration-300 ${
+                      activeSection === id ? "scale-x-100" : "scale-x-0 group-hover:scale-x-100"
+                    }`}></span>
                   </a>
                 ))}
                 <button onClick={() => setDark((d) => !d)} aria-label="Toggle theme"
-                  className={`ml-2 p-2 rounded-md transition-colors ${t.btnGhost}`}>
+                  className={`ml-2 p-2 rounded-md transition-all hover:rotate-12 ${t.btnGhost}`}>
                   {dark ? <ISun className="w-4 h-4" /> : <IMoon className="w-4 h-4" />}
                 </button>
               </div>
             </nav>
           </header>
 
-          <main id="top" className="max-w-5xl mx-auto px-5 pt-32 pb-20">
+          <main id="top" ref={mainRef} className="relative z-10 max-w-5xl mx-auto px-5 pt-32 pb-20">
+            {/* ⭐ the beam that follows you all the way down */}
+            <TracingBeam targetRef={mainRef} dark={dark} />
+
             {/* ---------- HERO ---------- */}
-            <section className="min-h-[70vh] flex flex-col justify-center">
+            <section className="relative min-h-[82vh] flex flex-col justify-center">
               <Reveal>
                 <div className="flex items-center gap-2 mb-5">
                   <span className="relative flex h-2.5 w-2.5">
@@ -340,7 +748,7 @@
               </Reveal>
 
               <Reveal delay={100}>
-                <h1 className={`text-4xl sm:text-6xl font-extrabold tracking-tight leading-tight ${t.heading}`}>
+                <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight leading-tight gradient-name">
                   Anubhav Kumar Shukla
                 </h1>
               </Reveal>
@@ -362,36 +770,72 @@
 
               <Reveal delay={400}>
                 <div className="mt-8 flex flex-wrap items-center gap-3">
-                  <a href="#projects" className={`px-5 py-2.5 rounded-lg text-sm font-semibold transition-colors ${t.btnPrimary}`}>
-                    View my work
-                  </a>
-                  <a href={LINKS.email} className={`px-5 py-2.5 rounded-lg text-sm font-semibold transition-colors ${t.btnGhost}`}>
-                    Get in touch
-                  </a>
+                  <Magnetic>
+                    <a href="#projects" className={`btn-shine inline-block px-5 py-2.5 rounded-lg text-sm font-semibold ${t.btnPrimary}`}>
+                      View my work
+                    </a>
+                  </Magnetic>
+                  <Magnetic>
+                    <a href={LINKS.email} className={`inline-block px-5 py-2.5 rounded-lg text-sm font-semibold ${t.btnGhost}`}>
+                      Get in touch
+                    </a>
+                  </Magnetic>
                   <div className={`flex items-center gap-1 ml-1 ${t.sub}`}>
-                    <a href={LINKS.github} target="_blank" rel="noreferrer" aria-label="GitHub" className="p-2 hover:text-violet-500 transition-colors"><IGithub /></a>
-                    <a href={LINKS.linkedin} target="_blank" rel="noreferrer" aria-label="LinkedIn" className="p-2 hover:text-violet-500 transition-colors"><ILinkedin /></a>
-                    <a href={LINKS.leetcode} target="_blank" rel="noreferrer" aria-label="LeetCode" className="p-2 hover:text-violet-500 transition-colors"><ICode /></a>
+                    <a href={LINKS.github} target="_blank" rel="noreferrer" aria-label="GitHub" className="p-2 hover:text-violet-500 hover:-translate-y-1 transition-all"><IGithub /></a>
+                    <a href={LINKS.linkedin} target="_blank" rel="noreferrer" aria-label="LinkedIn" className="p-2 hover:text-violet-500 hover:-translate-y-1 transition-all"><ILinkedin /></a>
+                    <a href={LINKS.leetcode} target="_blank" rel="noreferrer" aria-label="LeetCode" className="p-2 hover:text-violet-500 hover:-translate-y-1 transition-all"><ICode /></a>
                   </div>
                 </div>
               </Reveal>
 
+              {/* animated impact stats */}
               <Reveal delay={500}>
+                <div className="mt-12 grid grid-cols-3 gap-3 sm:gap-5 max-w-xl">
+                  {STATS.map(({ value, suffix, label }) => (
+                    <div key={label} className={`rounded-xl border backdrop-blur-sm p-4 text-center ${t.statCard}`}>
+                      <p className="text-2xl sm:text-3xl font-extrabold text-violet-500">
+                        <CountUp end={value} suffix={suffix} />
+                      </p>
+                      <p className={`mt-1 text-[11px] sm:text-xs leading-snug ${t.sub}`}>{label}</p>
+                    </div>
+                  ))}
+                </div>
+              </Reveal>
+
+              <Reveal delay={600}>
                 <p className={`mt-10 flex items-center gap-2 text-sm ${t.sub}`}>
                   <IMapPin className="w-4 h-4 text-violet-500" /> Chennai, India
                 </p>
               </Reveal>
+
+              {/* bouncing scroll hint, fades once you start scrolling */}
+              <div className={`absolute bottom-2 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 transition-opacity duration-500 ${scrolled ? "opacity-0" : "opacity-100"}`}>
+                <span className={`font-mono text-[10px] tracking-[0.3em] uppercase ${t.sub}`}>scroll</span>
+                <IDown className={`w-4 h-4 bounce-slow ${t.sub}`} />
+              </div>
             </section>
+
+            {/* infinite tech marquee */}
+            <div className="marquee mt-6 py-4" aria-hidden="true">
+              <div className="marquee-track">
+                {[...MARQUEE, ...MARQUEE].map((s, i) => (
+                  <span key={i} className={`font-mono text-sm mx-5 whitespace-nowrap flex items-center gap-5 ${t.marquee}`}>
+                    {s} <span className="text-violet-500/60">◆</span>
+                  </span>
+                ))}
+              </div>
+            </div>
 
             {/* ---------- EXPERIENCE ---------- */}
             <section id="experience" className="pt-24 scroll-mt-20">
               <SectionTitle icon={IBriefcase} eyebrow="experience" title="Where I've worked" />
 
-              <div className={`relative border-l-2 ${t.timeline} ml-3 space-y-12`}>
+              <div className="relative ml-3 space-y-12 pl-0">
+                <FillLine dark={dark} />
                 {EXPERIENCE.map((job, i) => (
-                  <Reveal key={i} delay={i * 120}>
+                  <Reveal key={i} delay={i * 120} dir="left">
                     <div className="relative pl-8">
-                      <span className={`absolute -left-[9px] top-1.5 h-4 w-4 rounded-full ring-4 ${t.dot}`}></span>
+                      <span className={`absolute -left-[7px] top-1.5 h-4 w-4 rounded-full ring-4 ${t.dot}`}></span>
                       <div className="flex flex-wrap items-baseline justify-between gap-2">
                         <h3 className={`text-xl font-bold ${t.heading}`}>{job.role}</h3>
                         <span className={`font-mono text-xs ${t.mono}`}>{job.period}</span>
@@ -407,7 +851,7 @@
                       </ul>
                       <div className="mt-4 flex flex-wrap gap-2">
                         {job.stack.map((s) => (
-                          <span key={s} className={`px-2.5 py-1 rounded-full text-xs font-mono border ${t.accentChip}`}>{s}</span>
+                          <span key={s} className={`px-2.5 py-1 rounded-full text-xs font-mono border transition-colors ${t.accentChip}`}>{s}</span>
                         ))}
                       </div>
                     </div>
@@ -423,43 +867,45 @@
               <div className="grid gap-6">
                 {PROJECTS.map((proj, i) => (
                   <Reveal key={proj.name} delay={i * 100}>
-                    <div className={`group rounded-xl border p-6 sm:p-8 transition-all duration-300 ${t.card} ${proj.featured ? "ring-1 ring-violet-500/20" : ""}`}>
-                      <div className="flex flex-wrap items-start justify-between gap-3">
-                        <div>
-                          <h3 className={`text-xl font-bold flex items-center gap-2 ${t.heading}`}>
-                            {proj.name}
-                            {proj.featured && (
-                              <span className={`px-2 py-0.5 rounded-full text-[10px] uppercase tracking-wider font-mono border ${t.accentChip}`}>Featured</span>
-                            )}
-                          </h3>
-                          <p className={`mt-1 text-sm ${t.sub}`}>{proj.tagline}</p>
+                    <Tilt>
+                      <div className={`spot-card group rounded-xl border p-6 sm:p-8 transition-all duration-300 ${t.card} ${proj.featured ? "ring-1 ring-violet-500/20" : ""}`}>
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div>
+                            <h3 className={`text-xl font-bold flex items-center gap-2 ${t.heading}`}>
+                              {proj.name}
+                              {proj.featured && (
+                                <span className={`px-2 py-0.5 rounded-full text-[10px] uppercase tracking-wider font-mono border ${t.accentChip}`}>Featured</span>
+                              )}
+                            </h3>
+                            <p className={`mt-1 text-sm ${t.sub}`}>{proj.tagline}</p>
+                          </div>
+                          <div className="flex gap-3">
+                            {proj.links.map((l) => (
+                              <a key={l.label} href={l.href} target="_blank" rel="noreferrer"
+                                className={`inline-flex items-center gap-1 text-xs font-semibold ${t.link}`}>
+                                {l.label}
+                                <IArrow className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+                              </a>
+                            ))}
+                          </div>
                         </div>
-                        <div className="flex gap-3">
-                          {proj.links.map((l) => (
-                            <a key={l.label} href={l.href} target="_blank" rel="noreferrer"
-                              className={`inline-flex items-center gap-1 text-xs font-semibold ${t.link}`}>
-                              {l.label}
-                              <IArrow className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
-                            </a>
+
+                        <ul className={`mt-5 space-y-2 text-sm leading-relaxed ${t.sub}`}>
+                          {proj.points.map((p, j) => (
+                            <li key={j} className="flex gap-2.5">
+                              <span className="text-violet-500 mt-1">▹</span>
+                              <span>{p}</span>
+                            </li>
+                          ))}
+                        </ul>
+
+                        <div className="mt-5 flex flex-wrap gap-2">
+                          {proj.stack.map((s) => (
+                            <span key={s} className={`px-2.5 py-1 rounded-full text-xs font-mono border transition-colors ${t.chip}`}>{s}</span>
                           ))}
                         </div>
                       </div>
-
-                      <ul className={`mt-5 space-y-2 text-sm leading-relaxed ${t.sub}`}>
-                        {proj.points.map((p, j) => (
-                          <li key={j} className="flex gap-2.5">
-                            <span className="text-violet-500 mt-1">▹</span>
-                            <span>{p}</span>
-                          </li>
-                        ))}
-                      </ul>
-
-                      <div className="mt-5 flex flex-wrap gap-2">
-                        {proj.stack.map((s) => (
-                          <span key={s} className={`px-2.5 py-1 rounded-full text-xs font-mono border ${t.chip}`}>{s}</span>
-                        ))}
-                      </div>
-                    </div>
+                    </Tilt>
                   </Reveal>
                 ))}
               </div>
@@ -472,21 +918,23 @@
               <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
                 {SKILLS.map(({ group, items }, i) => (
                   <Reveal key={group} delay={i * 80}>
-                    <div className={`rounded-xl border p-5 h-full transition-colors ${t.card}`}>
-                      <p className={`font-mono text-xs tracking-widest uppercase mb-3 ${t.mono}`}>{group}</p>
-                      <div className="flex flex-wrap gap-2">
-                        {items.map((s) => (
-                          <span key={s} className={`px-2.5 py-1 rounded-full text-xs border ${t.chip}`}>{s}</span>
-                        ))}
+                    <Tilt max={5} className="h-full">
+                      <div className={`spot-card rounded-xl border p-5 h-full transition-all ${t.card}`}>
+                        <p className={`font-mono text-xs tracking-widest uppercase mb-3 ${t.mono}`}>{group}</p>
+                        <div className="flex flex-wrap gap-2">
+                          {items.map((s) => (
+                            <span key={s} className={`px-2.5 py-1 rounded-full text-xs border transition-colors cursor-default ${t.chip}`}>{s}</span>
+                          ))}
+                        </div>
                       </div>
-                    </div>
+                    </Tilt>
                   </Reveal>
                 ))}
               </div>
 
               <div className="mt-10 grid sm:grid-cols-2 gap-5">
-                <Reveal>
-                  <div className={`rounded-xl border p-5 flex gap-4 items-start ${t.card}`}>
+                <Reveal dir="left">
+                  <div className={`spot-card rounded-xl border p-5 flex gap-4 items-start transition-all ${t.card}`}>
                     <IAward className="w-6 h-6 text-violet-500 shrink-0 mt-0.5" />
                     <div>
                       <p className={`font-semibold ${t.heading}`}>Achievements</p>
@@ -497,8 +945,8 @@
                     </div>
                   </div>
                 </Reveal>
-                <Reveal delay={100}>
-                  <div className={`rounded-xl border p-5 flex gap-4 items-start ${t.card}`}>
+                <Reveal dir="right" delay={100}>
+                  <div className={`spot-card rounded-xl border p-5 flex gap-4 items-start transition-all ${t.card}`}>
                     <IGrad className="w-6 h-6 text-violet-500 shrink-0 mt-0.5" />
                     <div>
                       <p className={`font-semibold ${t.heading}`}>Education</p>
@@ -528,25 +976,39 @@
                     it's an opportunity or just a question.
                   </p>
                   <div className="mt-8 flex flex-wrap justify-center gap-3">
-                    <a href={LINKS.email} className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-colors ${t.btnPrimary}`}>
-                      <IMail className="w-4 h-4" /> kumaranubhav691@gmail.com
-                    </a>
-                    <a href={LINKS.phone} className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-colors ${t.btnGhost}`}>
-                      <IPhone className="w-4 h-4" /> +91 74938 24269
-                    </a>
+                    <Magnetic>
+                      <a href={LINKS.email} className={`btn-shine inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold ${t.btnPrimary}`}>
+                        <IMail className="w-4 h-4" /> kumaranubhav691@gmail.com
+                      </a>
+                    </Magnetic>
+                    <Magnetic>
+                      <a href={LINKS.phone} className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold ${t.btnGhost}`}>
+                        <IPhone className="w-4 h-4" /> +91 74938 24269
+                      </a>
+                    </Magnetic>
                   </div>
                   <div className={`mt-8 flex justify-center gap-4 ${t.sub}`}>
-                    <a href={LINKS.github} target="_blank" rel="noreferrer" aria-label="GitHub" className="hover:text-violet-500 transition-colors"><IGithub /></a>
-                    <a href={LINKS.linkedin} target="_blank" rel="noreferrer" aria-label="LinkedIn" className="hover:text-violet-500 transition-colors"><ILinkedin /></a>
-                    <a href={LINKS.leetcode} target="_blank" rel="noreferrer" aria-label="LeetCode" className="hover:text-violet-500 transition-colors"><ICode /></a>
+                    <a href={LINKS.github} target="_blank" rel="noreferrer" aria-label="GitHub" className="hover:text-violet-500 hover:-translate-y-1 transition-all"><IGithub /></a>
+                    <a href={LINKS.linkedin} target="_blank" rel="noreferrer" aria-label="LinkedIn" className="hover:text-violet-500 hover:-translate-y-1 transition-all"><ILinkedin /></a>
+                    <a href={LINKS.leetcode} target="_blank" rel="noreferrer" aria-label="LeetCode" className="hover:text-violet-500 hover:-translate-y-1 transition-all"><ICode /></a>
                   </div>
                 </div>
               </Reveal>
             </section>
           </main>
 
+          {/* back-to-top */}
+          <button
+            onClick={() => window.scrollTo({ top: 0, behavior: REDUCED_MOTION ? "auto" : "smooth" })}
+            aria-label="Back to top"
+            className={`fixed bottom-6 right-6 z-50 p-3 rounded-full transition-all duration-300 ${t.btnPrimary} ${
+              showTop ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none"
+            }`}>
+            <IUp className="w-4 h-4" />
+          </button>
+
           {/* ---------- FOOTER ---------- */}
-          <footer className={`border-t py-6 text-center text-xs font-mono ${t.footer}`}>
+          <footer className={`relative z-10 border-t py-6 text-center text-xs font-mono ${t.footer}`}>
             Designed & built by Anubhav Kumar Shukla · React + Tailwind CSS
           </footer>
         </div>
